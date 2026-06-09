@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "created_at": "2026-01-15T10:00:00Z",
+  "private_repo": "/path/to/private-best-practices-guide",
+  "public_repo": "/path/to/public-guide",
+  "private_repo_url": "",
+  "public_repo_url": "",
+  "since_ref": "abc1234",
+  "head_ref": "def5678",
+  "public_ref": "fed8765",
+  "vz_markers": [
+    ".Internal requirement",
+    ".Internal recommendation",
+    "Internal-Tracker-Id",
+    "ACME Corp"
+  ],
+  "files": [
+    {
+      "id": "f1",
+      "private_path": "modules/best-practices-pod-security.adoc",
+      "public_path": "modules/k8s-best-practices-pod-security.adoc",
+      "file_classification": "shared",
+      "file_classification_reason": "Has matching public counterpart",
+      "private_content_before": "= Pod Security Best Practices\n\nContainers must not run as root.\n\nUse read-only root filesystems.\n",
+      "private_content_after": "= Pod Security Best Practices\n\nContainers must not run as root.\n\nUse read-only root filesystems.\n\nAll pods should define a SecurityContext with runAsNonRoot: true.\n\nPod security admission should enforce the restricted profile for production namespaces.\n",
+      "proposed_public_content": "= Pod Security Best Practices\n\nContainers must not run as root.\n\nUse read-only root filesystems.\n\nAll pods should define a SecurityContext with runAsNonRoot: true.\n\nPod security admission should enforce the restricted profile for production namespaces.\n",
+      "final_content": "",
+      "decision": "pending",
+      "reviewer_classification": "",
+      "hunks": [
+        {
+          "id": "f1-h1",
+          "hunk_header": "@@ -4,3 +4,7 @@",
+          "diff_text": "@@ -4,3 +4,7 @@\n Use read-only root filesystems.\n \n+All pods should define a SecurityContext with runAsNonRoot: true.\n+\n+Pod security admission should enforce the restricted profile for production namespaces.\n",
+          "classification": "generic",
+          "reason": "Cloud-native pod security best practice. No internal-specific references.",
+          "vz_references": [],
+          "generic_summary": "Added SecurityContext and PodSecurity admission recommendations",
+          "vz_summary": ""
+        }
+      ]
+    },
+    {
+      "id": "f2",
+      "private_path": "modules/best-practices-helm.adoc",
+      "public_path": "modules/k8s-best-practices-helm.adoc",
+      "file_classification": "shared",
+      "file_classification_reason": "Has matching public counterpart",
+      "private_content_before": "= Helm Chart Best Practices\n\nHelm charts should follow semantic versioning.\n\nAll values should have sensible defaults.\n\nCharts must pass helm lint before deployment.\n",
+      "private_content_after": "= Helm Chart Best Practices\n\nHelm charts should follow semantic versioning.\n\nAll values should have sensible defaults.\n\nCharts must pass helm lint before deployment.\n\nUse helm test to validate chart installations.\n\n.Internal requirement\n[NOTE]\n====\nAll Helm charts must be stored in the ACME Corp approved OCI registry.\n====\n",
+      "proposed_public_content": "= Helm Chart Best Practices\n\nHelm charts should follow semantic versioning.\n\nAll values should have sensible defaults.\n\nCharts must pass helm lint before deployment.\n\nUse helm test to validate chart installations.\n",
+      "final_content": "",
+      "decision": "pending",
+      "reviewer_classification": "",
+      "hunks": [
+        {
+          "id": "f2-h1",
+          "hunk_header": "@@ -6,3 +6,5 @@",
+          "diff_text": "@@ -6,3 +6,5 @@\n Charts must pass helm lint before deployment.\n \n+Use helm test to validate chart installations.\n",
+          "classification": "generic",
+          "reason": "Generic Helm testing recommendation with no internal markers.",
+          "vz_references": [],
+          "generic_summary": "Added recommendation to use helm test for validation",
+          "vz_summary": ""
+        },
+        {
+          "id": "f2-h2",
+          "hunk_header": "@@ -8,0 +10,5 @@",
+          "diff_text": "@@ -8,0 +10,5 @@\n+.Internal requirement\n+[NOTE]\n+====\n+All Helm charts must be stored in the ACME Corp approved OCI registry.\n+====\n",
+          "classification": "verizon-specific",
+          "reason": "Contains internal markers: '.Internal requirement', 'ACME Corp'",
+          "vz_references": [
+            ".Internal requirement",
+            "ACME Corp"
+          ],
+          "generic_summary": "",
+          "vz_summary": "Internal-specific requirement for Helm chart storage in private OCI registry"
+        }
+      ]
+    },
+    {
+      "id": "f3",
+      "private_path": "modules/best-practices-networking.adoc",
+      "public_path": "modules/k8s-best-practices-networking.adoc",
+      "file_classification": "shared",
+      "file_classification_reason": "Has matching public counterpart",
+      "private_content_before": "= Networking Best Practices\n\nApplications should support IPv6 natively.\n\nUse NetworkPolicies to restrict traffic.\n",
+      "private_content_after": "= Networking Best Practices\n\nApplications should support IPv6 natively.\n\nUse NetworkPolicies to restrict traffic.\n\nAll secondary interfaces (MULTUS) must support dual stack.\n\nVendors must work with ACME Corp to generate network policies using the internal template. Policies must be deployed through ACME Corp systems.\n\nServices should prefer ClusterIP type unless external access is required. Use Ingress or Gateway API for HTTP routing.\n",
+      "proposed_public_content": "= Networking Best Practices\n\nApplications should support IPv6 natively.\n\nUse NetworkPolicies to restrict traffic.\n\nAll secondary interfaces (MULTUS) must support dual stack.\n\nServices should prefer ClusterIP type unless external access is required. Use Ingress or Gateway API for HTTP routing.\n",
+      "final_content": "",
+      "decision": "pending",
+      "reviewer_classification": "",
+      "hunks": [
+        {
+          "id": "f3-h1",
+          "hunk_header": "@@ -4,3 +4,5 @@",
+          "diff_text": "@@ -4,3 +4,5 @@\n Use NetworkPolicies to restrict traffic.\n \n+All secondary interfaces (MULTUS) must support dual stack.\n",
+          "classification": "generic",
+          "reason": "Generic MULTUS dual-stack networking requirement. No internal markers.",
+          "vz_references": [],
+          "generic_summary": "Added MULTUS dual-stack requirement",
+          "vz_summary": ""
+        },
+        {
+          "id": "f3-h2",
+          "hunk_header": "@@ -6,0 +8,3 @@",
+          "diff_text": "@@ -6,0 +8,3 @@\n+Vendors must work with ACME Corp to generate network policies using the internal template. Policies must be deployed through ACME Corp systems.\n",
+          "classification": "verizon-specific",
+          "reason": "Contains internal markers: 'ACME Corp', 'internal template'",
+          "vz_references": [
+            "ACME Corp"
+          ],
+          "generic_summary": "",
+          "vz_summary": "Internal-specific network policy generation and deployment requirements"
+        },
+        {
+          "id": "f3-h3",
+          "hunk_header": "@@ -6,0 +11,3 @@",
+          "diff_text": "@@ -6,0 +11,3 @@\n+Services should prefer ClusterIP type unless external access is required. Use Ingress or Gateway API for HTTP routing.\n",
+          "classification": "generic",
+          "reason": "Generic Kubernetes service type recommendation. No internal markers.",
+          "vz_references": [],
+          "generic_summary": "Added service type and Ingress/Gateway API recommendation",
+          "vz_summary": ""
+        }
+      ]
+    },
+    {
+      "id": "f4",
+      "private_path": "modules/best-practices-internal-networking-overview.adoc",
+      "public_path": "",
+      "file_classification": "vz_specific",
+      "file_classification_reason": "Filename matches internal-specific pattern",
+      "private_content_before": "= Internal Networking Overview\n\nThe platform uses a dedicated network fabric for core connectivity.\n",
+      "private_content_after": "= Internal Networking Overview\n\nThe platform uses a dedicated network fabric for core connectivity.\n\nCore fabric supports 100GbE links.\n",
+      "proposed_public_content": "",
+      "final_content": "",
+      "decision": "auto_excluded",
+      "reviewer_classification": "",
+      "hunks": [
+        {
+          "id": "f4-h1",
+          "hunk_header": "@@ -2,3 +2,5 @@",
+          "diff_text": "@@ -2,3 +2,5 @@\n The platform uses a dedicated network fabric for core connectivity.\n \n+Core fabric supports 100GbE links.\n",
+          "classification": "verizon-specific",
+          "reason": "Auto-classified: internal-specific file. Content references private network fabric.",
+          "vz_references": [],
+          "generic_summary": "",
+          "vz_summary": "Internal network fabric specifications"
+        }
+      ]
+    },
+    {
+      "id": "f5",
+      "private_path": "modules/best-practices-internal-doc-history.adoc",
+      "public_path": "",
+      "file_classification": "vz_specific",
+      "file_classification_reason": "Filename matches internal-specific pattern",
+      "private_content_before": "|Jan, 2025\n|Initial release\n",
+      "private_content_after": "|Mar, 2026\n|Updated requirements numbering\n",
+      "proposed_public_content": "",
+      "final_content": "",
+      "decision": "auto_excluded",
+      "reviewer_classification": "",
+      "hunks": [
+        {
+          "id": "f5-h1",
+          "hunk_header": "@@ -1,2 +1,2 @@",
+          "diff_text": "@@ -1,2 +1,2 @@\n-|Jan, 2025\n-|Initial release\n+|Mar, 2026\n+|Updated requirements numbering\n",
+          "classification": "verizon-specific",
+          "reason": "Auto-classified: internal-specific file",
+          "vz_references": [],
+          "generic_summary": "",
+          "vz_summary": "Version history update"
+        }
+      ]
+    },
+    {
+      "id": "f6",
+      "private_path": "modules/best-practices-observability.adoc",
+      "public_path": "",
+      "file_classification": "ambiguous",
+      "file_classification_reason": "Non-internal file with no matching public counterpart",
+      "private_content_before": "",
+      "private_content_after": "= Observability Best Practices\n\nApplications must expose Prometheus-compatible metrics endpoints.\n\nUse structured logging (JSON format) for all application logs.\n\nCNFs must use the ACME Corp standardized log generation, storage and retrieval means.\n\nDistributed tracing should use OpenTelemetry for instrumentation.\n",
+      "proposed_public_content": "= Observability Best Practices\n\nApplications must expose Prometheus-compatible metrics endpoints.\n\nUse structured logging (JSON format) for all application logs.\n\nDistributed tracing should use OpenTelemetry for instrumentation.\n",
+      "final_content": "",
+      "decision": "pending",
+      "reviewer_classification": "",
+      "hunks": [
+        {
+          "id": "f6-h1",
+          "hunk_header": "@@ -0,0 +1,5 @@",
+          "diff_text": "@@ -0,0 +1,5 @@\n+= Observability Best Practices\n+\n+Applications must expose Prometheus-compatible metrics endpoints.\n+\n+Use structured logging (JSON format) for all application logs.\n",
+          "classification": "generic",
+          "reason": "Standard observability practices — Prometheus metrics and structured logging. No internal markers.",
+          "vz_references": [],
+          "generic_summary": "Prometheus metrics and structured JSON logging requirements",
+          "vz_summary": ""
+        },
+        {
+          "id": "f6-h2",
+          "hunk_header": "@@ -0,0 +7,1 @@",
+          "diff_text": "@@ -0,0 +7,1 @@\n+CNFs must use the ACME Corp standardized log generation, storage and retrieval means.\n",
+          "classification": "verizon-specific",
+          "reason": "Contains internal marker: 'ACME Corp'",
+          "vz_references": [
+            "ACME Corp"
+          ],
+          "generic_summary": "",
+          "vz_summary": "Internal-specific logging infrastructure requirement"
+        },
+        {
+          "id": "f6-h3",
+          "hunk_header": "@@ -0,0 +9,1 @@",
+          "diff_text": "@@ -0,0 +9,1 @@\n+Distributed tracing should use OpenTelemetry for instrumentation.\n",
+          "classification": "generic",
+          "reason": "Generic OpenTelemetry tracing recommendation. No internal markers.",
+          "vz_references": [],
+          "generic_summary": "OpenTelemetry tracing recommendation",
+          "vz_summary": ""
+        }
+      ]
+    }
+  ]
+}

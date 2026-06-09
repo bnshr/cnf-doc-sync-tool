@@ -1,0 +1,21 @@
+{
+  "name": "cnf-doc-sync",
+  "description": "Classify and sync documentation changes from VZ CNF guide to public K8s guide",
+  "owner": {
+    "name": "Banashri Mandal"
+  },
+  "plugins": [
+    {
+      "name": "cnf-doc-sync",
+      "description": "Classify and sync documentation changes from VZ CNF guide to public K8s guide, with an interactive review UI",
+      "version": "1.0.0",
+      "source": "./",
+      "author": {
+        "name": "Banashri Mandal"
+      },
+      "skills": [
+        "./skills/cnf-doc-sync"
+      ]
+    }
+  ]
+}

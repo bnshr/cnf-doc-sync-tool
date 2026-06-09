@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dist/
+node_modules/
+cnf_doc_sync_ui/static/*
+!cnf_doc_sync_ui/static/.gitkeep
+.env
+.DS_Store
+cnf-doc-sync-data-*.json
+cnf-doc-sync-report-*.md
