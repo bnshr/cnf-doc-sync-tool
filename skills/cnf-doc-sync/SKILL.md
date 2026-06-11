@@ -27,8 +27,8 @@ Verizon-specific modules use the `cnf-best-practices-vz-*` naming pattern. Share
 /cnf-doc-sync <private-commit-hash> [public-commit-hash]
 ```
 
-- `private-commit-hash` (required): Commit in the private repo. Diff is from this commit to HEAD.
-- `public-commit-hash` (optional): Commit in the public repo. Used as context — read public files at this commit to check if a change already exists.
+- `private-commit-hash` (required): A commit (typically a merge commit) in the private repo. The diff is this commit vs its parent (`commit^..commit`) — i.e., the changes introduced by this specific commit.
+- `public-commit-hash` (optional): Commit in the public repo. Public files are read at this commit to compare against the private changes and check if content already exists in the public repo.
 
 ### Mode 2: Launch Review UI
 
@@ -70,14 +70,14 @@ Run these commands in the private repo (`/Users/bmandal/work/ai/vz-cnf-best-prac
    ```
    If this fails, tell the user: "Commit `<hash>` not found in vz-cnf-best-practices-guide. Please provide a valid commit hash." and stop.
 
-2. Get the list of changed files:
+2. Get the list of changed files (single commit diff — what this commit introduced):
    ```
-   git -C /Users/bmandal/work/ai/vz-cnf-best-practices-guide diff <private-commit>..HEAD --name-status
+   git -C /Users/bmandal/work/ai/vz-cnf-best-practices-guide diff <private-commit>^..<private-commit> --name-status
    ```
 
 3. Get the full diff content:
    ```
-   git -C /Users/bmandal/work/ai/vz-cnf-best-practices-guide diff <private-commit>..HEAD
+   git -C /Users/bmandal/work/ai/vz-cnf-best-practices-guide diff <private-commit>^..<private-commit>
    ```
 
 4. If a `public-commit-hash` was provided, validate it in the public repo:
@@ -86,7 +86,9 @@ Run these commands in the private repo (`/Users/bmandal/work/ai/vz-cnf-best-prac
    ```
    If this fails, tell the user: "Commit `<hash>` not found in guide repo. Please provide a valid commit hash or omit it." and stop.
 
-5. If no files changed, tell the user: "No changes detected between `<commit>` and HEAD." and stop.
+5. If no files changed, tell the user: "No changes detected in commit `<commit>`." and stop.
+
+5a. **Filter to module files only.** Only process files under `modules/` that match the `cnf-best-practices-*.adoc` pattern. Skip all non-module files (`main.adoc`, `.github/`, `scripts/`, `images/`, `README.md`, `CLAUDE.md`, `AGENTS.md`, PDFs, CSVs, etc.) — these are repo-specific and not candidates for sync. Report the count of skipped non-module files in the summary.
 
 6. Parse the diff output. Group changes by file. For each file, extract individual diff hunks (sections starting with `@@`).
 
@@ -104,9 +106,7 @@ Classify each changed file into an initial bucket by filename pattern:
 
 3. **Ambiguous**: Non-VZ files with no matching public counterpart. These also need AI content analysis.
 
-Also classify non-module files:
-- `main.adoc` changes: Classify as **Shared** (both repos have a `main.adoc`).
-- `.github/`, `scripts/`, `images/`, `README.md`, `CLAUDE.md`, `AGENTS.md`: Classify as **Verizon-only** unless the change is clearly generic infrastructure. Use judgment.
+Non-module files (`main.adoc`, `.github/`, `scripts/`, `images/`, `README.md`, etc.) are already filtered out in step 5a and should not appear in classification.
 
 Count the files in each bucket for the report summary.
 
@@ -189,12 +189,13 @@ Use this exact structure:
 # CNF Doc Sync Report
 
 **Date:** <YYYY-MM-DD>
-**Private repo:** vz-cnf-best-practices-guide @ `<private-commit-short>`..`HEAD`
-**Public repo:** guide @ `<public-commit-short>` (context) — or "N/A" if not provided
+**Private repo:** vz-cnf-best-practices-guide @ `<private-commit-short>` (commit `<private-commit-short>` vs parent)
+**Public repo:** guide @ `<public-commit-short>` (comparison baseline) — or "N/A" if not provided
 
 ## Summary
 
-- Total files changed: <N>
+- Total module files changed: <N>
+- Non-module files skipped: <N>
 - Verizon-only (auto-classified): <N>
 - Public-eligible: <N>
 - Mixed (needs manual review): <N>
@@ -336,9 +337,9 @@ After writing the markdown report, also generate a JSON data file at `reports/cn
 }
 ```
 
-**File content fields:** For each file, read the full content before and after:
-- `private_content_before`: `git -C <private-repo> show <since-commit>:<filepath>` (empty string for new files)
-- `private_content_after`: `git -C <private-repo> show HEAD:<filepath>` (empty string for deleted files)
+**File content fields:** For each file, read the full content before and after the commit:
+- `private_content_before`: `git -C <private-repo> show <private-commit>^:<filepath>` (empty string for new files)
+- `private_content_after`: `git -C <private-repo> show <private-commit>:<filepath>` (empty string for deleted files)
 
 **proposed_public_content:** For files with generic hunks, generate the proposed public file content by taking the `private_content_after` and removing all VZ-specific content (VZ admonitions, Doors IDs, VZ-specific paragraphs). Replace `cnf-best-practices-` with `k8s-best-practices-` in any IDs or cross-references. Leave this empty for `vz_specific` files.
 
