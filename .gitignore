@@ -8,5 +8,7 @@ cnf_doc_sync_ui/static/*
 !cnf_doc_sync_ui/static/.gitkeep
 .env
 .DS_Store
-cnf-doc-sync-data-*.json
-cnf-doc-sync-report-*.md
+reports/cnf-doc-sync-data-*.json
+reports/cnf-doc-sync-report-*.md
+test-results/*_data.json
+test-results/*_report.md

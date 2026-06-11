@@ -181,7 +181,7 @@ Aggregate results:
 
 ### Phase 4: Generate Report
 
-Write the report to `cnf-doc-sync-report-<YYYY-MM-DD>.md` in the current working directory. Use today's date.
+Write the report to `reports/cnf-doc-sync-report-<YYYY-MM-DD>.md` (relative to this tool's repo root). Create the `reports/` directory if it doesn't exist. Use today's date.
 
 Use this exact structure:
 
@@ -285,7 +285,7 @@ Hunks containing both generic and VZ-specific content.
 When your review is complete, invoke the skill with the report path:
 
 \```
-/cnf-doc-sync --create-pr cnf-doc-sync-report-<YYYY-MM-DD>.md
+/cnf-doc-sync --create-pr reports/cnf-doc-sync-report-<YYYY-MM-DD>.md
 \```
 
 This will:
@@ -295,7 +295,7 @@ This will:
 4. Create a PR with a summary of all included changes
 ```
 
-After writing the markdown report, also generate a JSON data file at `cnf-doc-sync-data-<YYYY-MM-DD>.json` for the review UI. Use this structure:
+After writing the markdown report, also generate a JSON data file at `reports/cnf-doc-sync-data-<YYYY-MM-DD>.json` for the review UI. Create the `reports/` directory if it doesn't exist. Use this structure:
 
 ```json
 {
