@@ -497,12 +497,10 @@ async def run(args: argparse.Namespace) -> None:
 
     # Get changed files
     changes = get_changed_files(private_repo, commit)
-    module_changes = [(s, f) for s, f in changes if f.startswith("modules/")]
-    other_changes = [(s, f) for s, f in changes if not f.startswith("modules/")]
 
-    print(f"Files changed: {len(changes)} total, {len(module_changes)} modules")
+    print(f"Files changed: {len(changes)} total")
 
-    # Classify each module file
+    # Classify each file
     files_data = []
     stats = {"auto_skip": 0, "vz_specific": 0, "shared": 0, "llm_calls": 0}
     sem = asyncio.Semaphore(4)
@@ -510,8 +508,16 @@ async def run(args: argparse.Namespace) -> None:
     async def process_file(status: str, filepath: str) -> dict:
         async with sem:
             is_vz = "-vz-" in filepath
-            topic = re.sub(r"^modules/cnf-best-practices-", "", filepath)
-            public_path = f"modules/k8s-best-practices-{topic}" if not is_vz else ""
+
+            # Map private path to public counterpart
+            if filepath.startswith("modules/cnf-best-practices-") and not is_vz:
+                topic = re.sub(r"^modules/cnf-best-practices-", "", filepath)
+                public_path = f"modules/k8s-best-practices-{topic}"
+            elif is_vz:
+                public_path = ""
+            else:
+                # Non-module files: check if same path exists in public repo
+                public_path = filepath
 
             # Check public counterpart exists
             has_public = False
@@ -522,6 +528,16 @@ async def run(args: argparse.Namespace) -> None:
                     capture_output=True, check=False,
                 )
                 has_public = check.returncode == 0
+                if not has_public and filepath.startswith("modules/"):
+                    # Module file with no k8s counterpart — try same filename
+                    check2 = subprocess.run(
+                        ["git", "-C", public_repo, "cat-file", "-e",
+                         f"{args.public_commit or 'HEAD'}:{filepath}"],
+                        capture_output=True, check=False,
+                    )
+                    if check2.returncode == 0:
+                        public_path = filepath
+                        has_public = True
 
             file_class = "vz_specific" if is_vz else ("shared" if has_public else "ambiguous")
 
@@ -580,7 +596,7 @@ async def run(args: argparse.Namespace) -> None:
                 "hunks": hunks,
             }
 
-    tasks = [process_file(s, f) for s, f in module_changes]
+    tasks = [process_file(s, f) for s, f in changes]
     results = await asyncio.gather(*tasks)
     files_data = sorted(results, key=lambda f: f["private_path"])
 
@@ -614,12 +630,11 @@ async def run(args: argparse.Namespace) -> None:
     pending = sum(1 for f in files_data if f["decision"] == "pending")
     excluded = sum(1 for f in files_data if f["decision"] == "auto_excluded")
     print(f"\nClassification complete:")
-    print(f"  Total module files: {len(files_data)}")
+    print(f"  Total files:        {len(files_data)}")
     print(f"  VZ auto-skip:       {stats['auto_skip']}")
     print(f"  VZ (regex/LLM):     {stats['vz_specific']}")
     print(f"  Pending review:     {pending}")
     print(f"  Auto-excluded:      {excluded}")
-    print(f"  Non-module files:   {len(other_changes)} (skipped)")
     print(f"\nOutput: {output}")
     print(f"\nLaunch review UI:")
     print(f"  python -m cnf_doc_sync_ui --data {output}")

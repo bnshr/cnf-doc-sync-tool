@@ -88,9 +88,7 @@ Run these commands in the private repo (`/Users/bmandal/work/ai/vz-cnf-best-prac
 
 5. If no files changed, tell the user: "No changes detected in commit `<commit>`." and stop.
 
-5a. **Filter to module files only.** Only process files under `modules/` that match the `cnf-best-practices-*.adoc` pattern. Skip all non-module files (`main.adoc`, `.github/`, `scripts/`, `images/`, `README.md`, `CLAUDE.md`, `AGENTS.md`, PDFs, CSVs, etc.) — these are repo-specific and not candidates for sync. Report the count of skipped non-module files in the summary.
-
-6. Parse the diff output. Group changes by file. For each file, extract individual diff hunks (sections starting with `@@`).
+6. Parse the diff output. Group changes by file. For each file, extract individual diff hunks (sections starting with `@@`). Include ALL changed files — not just `modules/`. Files like `main.adoc`, scripts, CI configs, etc. may also need syncing if they have a counterpart in the public repo.
 
 ### Phase 2: Auto-Classification
 
@@ -98,15 +96,13 @@ Classify each changed file into an initial bucket by filename pattern:
 
 1. **Verizon-only**: Files matching `*-vz-*` (e.g., `cnf-best-practices-vz-networking-overview.adoc`). These are auto-classified — skip AI analysis. They go directly into the "Verizon-Specific Changes" section of the report.
 
-2. **Shared**: Files that have a matching counterpart in the public repo. To check, strip the `cnf-best-practices-` prefix from the private filename and look for `k8s-best-practices-<same-topic>.adoc` in `/Users/bmandal/work/ai/guide/modules/`. Run:
+2. **Shared**: Files that have a matching counterpart in the public repo. For module files, strip the `cnf-best-practices-` prefix and look for `k8s-best-practices-<same-topic>.adoc` in `/Users/bmandal/work/ai/guide/modules/`. For non-module files (e.g., `main.adoc`, `.github/` configs), check if the same file exists at the same path in the public repo:
    ```
-   ls /Users/bmandal/work/ai/guide/modules/k8s-best-practices-<topic>.adoc
+   git -C /Users/bmandal/work/ai/guide cat-file -e <public-commit>:<filepath>
    ```
-   If the file exists, classify as Shared. These need AI content analysis.
+   If the counterpart exists, classify as Shared. These need AI content analysis.
 
-3. **Ambiguous**: Non-VZ files with no matching public counterpart. These also need AI content analysis.
-
-Non-module files (`main.adoc`, `.github/`, `scripts/`, `images/`, `README.md`, etc.) are already filtered out in step 5a and should not appear in classification.
+3. **Ambiguous**: Files with no matching public counterpart AND no VZ pattern in the filename. These also need AI content analysis — the content itself determines whether it's VZ-specific or generic.
 
 Count the files in each bucket for the report summary.
 
