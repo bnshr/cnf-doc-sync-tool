@@ -61,7 +61,8 @@ claude plugin install cnf-doc-sync
 Then in any Claude Code session:
 
 ```bash
-# Classify changes introduced by a private repo commit (with public context)
+# Classify changes introduced by a specific private repo commit (commit vs parent)
+# with public repo files at a specific commit for comparison
 /cnf-doc-sync <private-commit-hash> <public-commit-hash>
 
 # Launch review UI for a previously generated data file
@@ -284,8 +285,9 @@ cnf-doc-sync-tool/
 │       └── types.ts            # JSON data format types
 │
 ├── test-results/               # Validation test data
-│   ├── validation-report.md    # Test results summary
-│   └── tc{1-4}_*               # Per-test-case data
+│   ├── validation-report.md    # Test results summary (5 TCs, compared against human sync)
+│   ├── ground-truth.json       # Reference commit tuples and human sync diffs
+│   └── v2_tc{1-5}_*_cli.json  # Per-test-case classification data
 │
 └── HANDOVER.md                 # Full handover documentation
 ```

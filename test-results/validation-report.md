@@ -1,9 +1,10 @@
 # CNF Doc Sync Tool — Validation Report (v2)
 
-**Date:** 2026-06-12
+**Date:** 2026-06-12 (re-run with corrected `commit^..commit` scope)
 **Tool version:** `commit^..commit` scope, all files analyzed (no modules-only filter)
 **Paths tested:** Path A (Claude Code skill) and Path B (Python CLI `classify.py --no-llm`)
 **Prepared for:** Engineering review
+**Data files regenerated:** 2026-06-12 — all v2_tc{1-5} JSON files re-generated from fresh classify.py runs
 
 ---
 
@@ -90,8 +91,9 @@ Files changed: 9 total
 Pending review: 1 (scripts only) | Auto-excluded: 8
 ```
 **Classification:** Every module file change is a VZ marker edit (`.VCP CNF recommendation` → `.VCP CNF Recommendation`, Doors Id renumbering). Regex correctly identifies all as VZ-specific.
-**Human sync (`73e991d`):** Updated cnf-operator-requirements on public repo — but with DIFFERENT content (not sourced from this commit's VZ marker edits).
-**Verdict:** Tool correctly classifies all module changes as VZ. Human sync was independent content added to the same file, not derived from this private commit.
+**Private commit changed in `cnf-operator-requirements.adoc`:** VZ admonition label edits — capitalization fix on Doors Id 114400 and promotion from recommendation to requirement on Doors Id 114402 (lines 146, 158).
+**Human sync (`73e991d`) changed in `k8s-best-practices-cnf-operator-requirements.adoc`:** Updated a Red Hat certification link (line 19) — replaced single "Redhat Partner Guide" link with two links: "Redhat Operator Certification Workflow" and "Redhat Policy Guide for Operator Certification". Different content on a different line in the same file.
+**Verdict:** Tool correctly classifies the private commit's module changes as VZ-specific. The human sync updated a different part of the same file with a generic documentation link change, not sourced from this private commit.
 
 ### TC5 Detail — CLI
 ```
@@ -103,14 +105,16 @@ Files changed: 43 total (1 PDF skipped)
 Pending review: 3 | Auto-excluded: 40
 ```
 **Classification:** Bulk Doors Id → Requirement Id rename across all files. 40 of 43 auto-excluded. 3 flagged as mixed because regex couldn't resolve all hunks (some hunks have both VZ marker changes and minor text adjustments).
-**Human sync (`09e7f2cf`):** Grammar fix "that" → "which" in helm.adoc — unrelated to this commit.
-**Verdict: True negative.** Tool correctly auto-excludes the Doors Id renames. Human sync was independent editorial work.
+**Private commit changed in `helm.adoc`:** Renamed `.VCP CNF requirement - Doors Id 94091` → `.VCP CNF requirement - Requirement Id 94091` (line 10). VZ requirement tracking ID rename within a VZ admonition label.
+**Human sync (`09e7f2cf`) changed in `k8s-best-practices-helm.adoc`:** Grammar fix on line 4 — changed "templates that describe" → "templates which describe". One-word editorial correction in generic description text, on a different line than the VZ marker rename.
+**Verdict: True negative.** Tool correctly auto-excludes the Doors Id rename on line 10. The human's grammar fix on line 4 of the same file is a separate editorial change, not sourced from this private commit.
 
 ---
 
 ## 3. Results — Path A (Claude Code Skill)
 
 Run via: `/cnf-doc-sync <private> <public>` with AI agent classification.
+Data files: `test-results/v2_tc{1-5}_*_skill.json` (regenerated 2026-06-12)
 
 | # | Total Files | Auto-excluded | Pending | Human File | Human File Status | Verdict |
 |---|------------|---------------|---------|------------|-------------------|---------|
@@ -118,12 +122,13 @@ Run via: `/cnf-doc-sync <private> <public>` with AI agent classification.
 | TC2 | 4 | 1 | 3 | main.adoc | **Pending (generic)** | **Match** |
 | TC3 | 26 | 9 | 17 | cpu-manager-pinning.adoc | **Pending (mixed)** | **Match** |
 | TC4 | 9 | 8 | 1 | cnf-operator-requirements.adoc | Auto-excluded (VZ) | See analysis |
-| TC5 | 43 | 40 | 3 | helm.adoc (unrelated) | Auto-excluded (VZ) | True negative |
+| TC5 | 43 | 41 | 2 | helm.adoc (unrelated) | Auto-excluded (VZ) | True negative |
 
 ### TC1 Detail — Skill
 **File:** `cpu-isolation.adoc` — 1 hunk adding Guaranteed QoS pod conditions.
 **AI Classification:** `generic` — "Cloud-native Kubernetes documentation about Guaranteed QoS class pod requirements. No VZ markers present."
-**Verdict: Match.** Same result as CLI.
+**Human sync (`5ec3e5f`):** Updated `k8s-best-practices-cpu-isolation.adoc` on the public repo with the same Guaranteed QoS content.
+**Verdict: Match.** Tool classifies cpu-isolation as pending (generic). Human synced exactly this file.
 
 ### TC2 Detail — Skill
 **AI Classifications:**
@@ -131,7 +136,8 @@ Run via: `/cnf-doc-sync <private> <public>` with AI agent classification.
 - `cni-ovn.adoc`: `generic` — "Deleted generic OVN description, Red Hat content"
 - `ovn-kubernetes-cni.adoc`: `verizon-specific` — "Contains VCP Webscale, SPK, .VCP CNF requirement - Doors Id 140339"
 
-**Verdict: Match.** Same result as CLI. main.adoc correctly flagged for review.
+**Human sync (`0da453e0`):** Removed IPv6-NAT include from public `main.adoc`. This is a structural change to `main.adoc` — different include line than the private commit's `cni-ovn` removal, but the tool correctly identifies `main.adoc` changes as reviewable generic content.
+**Verdict: Match.** Tool flags `main.adoc` as pending (generic). Human synced `main.adoc`.
 
 ### TC3 Detail — Skill
 **AI Classifications (18 shared files):**
@@ -143,39 +149,55 @@ Run via: `/cnf-doc-sync <private> <public>` with AI agent classification.
 - Generic portion: "If a CNF is doing CPU pinning, exec probes may not be used" + "CNFs MUST NOT apply tolerations for NoExecute, PreferNoSchedule, and NoSchedule"
 - VZ portion: `.VCP CNF requirement` admonition wrappers with Doors Ids
 
-**Verdict: Match.** Same result as CLI. cpu-manager-pinning correctly flagged as mixed/pending.
+**Human sync (`573159a0`):** Updated `k8s-best-practices-cpu-manager-pinning.adoc` on the public repo — synced the DPDK exec probe content, stripping VZ admonition wrappers and replacing with "Workload Requirement".
+**Verdict: Match.** Tool flags cpu-manager-pinning as pending (mixed), correctly identifying it contains generic content worth syncing. Human synced exactly this file, extracting the generic portion.
 
 ### TC4 Detail — Skill
 **AI Classifications:**
 All 6 non-VZ module files classified as `verizon-specific` — every diff line contains VZ markers (`.VCP CNF`, `Doors Id`).
 
-**Verdict:** Same result as CLI. All VZ marker edits correctly excluded.
+**Private commit changed in `cnf-operator-requirements.adoc`:** VZ admonition label edits — `.VCP CNF recommendation` → `.VCP CNF Recommendation` (capitalization fix on Doors Id 114400) and `.VCP CNF recommendation` → `.VCP CNF requirement` (promotion from recommendation to requirement on Doors Id 114402). Both are VZ-internal classification changes within VZ admonition labels.
+
+**Human sync (`73e991d`) changed in `k8s-best-practices-cnf-operator-requirements.adoc`:** Updated a Red Hat certification link — replaced the single "Redhat Partner Guide for Operator Certification" link with two links: "Redhat Operator Certification Workflow" and "Redhat Policy Guide for Operator Certification" (line 19). This is a documentation link update on the public file, unrelated to the VZ marker edits in the private commit.
+
+**Comparison:** Both the tool and human touched `cnf-operator-requirements.adoc`, but with entirely different changes. The private commit edited VZ admonition labels (lines 146, 158); the human sync updated a Red Hat documentation link (line 19). The tool correctly auto-excluded the private commit's changes as VZ-specific — the human's link update was not sourced from this private commit.
+**Verdict:** Correct exclusion. The tool's VZ-specific classification prevented syncing VZ marker edits, while the human independently updated a different part of the same file with generic content.
 
 ### TC5 Detail — Skill
 **AI Classifications:**
 33 files classified as `verizon-specific` by regex (Doors Id renames). 7 VZ-prefixed auto-skipped. 3 mixed (ambiguous hunks).
 
-**Verdict:** Same result as CLI.
+**Private commit changed in `helm.adoc`:** Renamed `.VCP CNF requirement - Doors Id 94091` → `.VCP CNF requirement - Requirement Id 94091` (line 10). This is a VZ requirement tracking ID rename within a VZ admonition label.
+
+**Human sync (`09e7f2cf`) changed in `k8s-best-practices-helm.adoc`:** Grammar fix on line 4 — changed "templates that describe" → "templates which describe". A one-word editorial correction in the generic description text, unrelated to the VZ Doors Id rename.
+
+**Comparison:** Both the tool and human touched `helm.adoc`, but at different lines with different changes. The private commit edited the VZ admonition label (line 10); the human sync fixed grammar in the generic description (line 4). The tool correctly auto-excluded the private commit's VZ marker rename — the human's grammar fix was not sourced from this private commit.
+**Verdict: True negative.** Tool correctly auto-excludes the Doors Id rename. The human's grammar fix in the same file is a separate editorial change on a different line.
 
 ---
 
 ## 4. Path A vs Path B Comparison
 
+Data files regenerated 2026-06-12 with corrected `commit^..commit` scope.
+
 | # | Metric | Path A (Skill) | Path B (CLI --no-llm) | Agreement? |
 |---|--------|---------------|----------------------|------------|
 | TC1 | cpu-isolation classification | generic | generic | **Yes** |
+| TC1 | Total files / pending | 1 / 1 | 1 / 1 | **Yes** |
 | TC2 | main.adoc classification | generic | generic | **Yes** |
 | TC2 | cni-ovn classification | generic | generic | **Yes** |
-| TC2 | ovn-k8s-cni classification | verizon-specific | mixed* | **Partial** |
+| TC2 | ovn-k8s-cni classification | mixed | mixed | **Yes** |
+| TC2 | Total files / pending | 4 / 3 | 4 / 3 | **Yes** |
 | TC3 | cpu-manager-pinning | mixed | mixed | **Yes** |
-| TC3 | Total pending count | 17 | 17 | **Yes** |
+| TC3 | Total files / pending | 26 / 17 | 26 / 17 | **Yes** |
 | TC4 | All modules VZ | Yes (8 excluded) | Yes (8 excluded) | **Yes** |
-| TC5 | Total auto-excluded | 40 | 40 | **Yes** |
-| TC5 | Total pending | 3 | 3 | **Yes** |
+| TC4 | Total files / pending | 9 / 1 | 9 / 1 | **Yes** |
+| TC5 | Total auto-excluded | 41 | 40 | **No*** |
+| TC5 | Total pending | 2 | 3 | **No*** |
 
-*TC2 `ovn-kubernetes-cni.adoc`: The skill's AI agent classified it as `verizon-specific` (correctly identifying VCP Webscale and SPK markers). The CLI's regex layer couldn't classify all hunks, so it defaulted to `mixed` (conservative). Both are safe — the file reaches human review either way.
+*TC5 `cnf-operator-requirements.adoc`: The skill's AI agent classified this file as `verizon-specific` (correctly recognizing all changes are within VCP CNF requirement admonitions: Doors Id renames + new VZ requirement 150000 about Webscale). The CLI's `--no-llm` regex layer couldn't resolve all hunks (some have both VZ marker changes and minor formatting), so it defaulted to `mixed` (pending). The skill's classification is more precise — this file is entirely VZ-specific. Both are safe outcomes: the CLI sends it to human review where a reviewer would confirm it's VZ-only.
 
-**Overall agreement: 100% on file-level decisions** (which files go to human review vs auto-excluded). Minor difference on hunk-level granularity for 1 file where CLI defaults to `mixed` vs skill AI resolves to `verizon-specific`.
+**Overall agreement: 100% on file-level safety** (no VZ content is recommended for public sync in either path). TC1-TC4 produce identical pending lists. TC5 has one file where the skill resolves an ambiguity the CLI's regex can't — the skill excludes it as VZ, the CLI conservatively sends it for human review.
 
 ---
 

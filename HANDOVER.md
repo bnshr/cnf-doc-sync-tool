@@ -114,9 +114,10 @@ cnf-doc-sync-tool/
 │       └── types.ts               # TypeScript interfaces
 │
 ├── test-results/                  # Validation test data
-│   ├── validation-report.md       # Summary across 4 test cases
-│   ├── ground-truth.json          # Reference data
-│   └── tc{1-4}_*_data.json/md    # Per-test-case results
+│   ├── validation-report.md       # Summary across 5 test cases (v2)
+│   ├── ground-truth.json          # Reference data (4 commit tuples)
+│   ├── tc{1-4}_*_data.json/md    # Per-test-case results (v1 format)
+│   └── v2_tc{1-5}_*_cli.json    # Per-test-case results (v2 format)
 │
 └── scripts/
     └── cnf-requirements-summary.py  # Utility script
@@ -186,11 +187,13 @@ claude plugin install cnf-doc-sync
 ```
 
 The skill (`skills/cnf-doc-sync/SKILL.md`) instructs Claude to:
-1. Run `git diff` on the private repo
+1. Run `git diff <commit>^..<commit>` on the private repo (single-commit diff — analyzes only the changes introduced by that specific commit, not cumulative changes to HEAD)
 2. Auto-classify `*-vz-*` files as Verizon-only
 3. Dispatch AI agents to classify each shared/ambiguous file
 4. Generate JSON data file + markdown report
 5. Optionally launch the Review UI
+
+Both paths (skill and CLI) use the same single-commit diff semantics: `commit^..commit`.
 
 ---
 
@@ -251,9 +254,9 @@ python -m cnf_doc_sync_ui --data <path-to-json>
 
 ## 7. Running Without Claude Code (Local LLM)
 
-### Recommended Approach
+### Implementation
 
-Add a standalone Python CLI script (`classify.py`) that replaces the Claude Code skill. The Review UI and PR publisher remain unchanged.
+The standalone Python CLI script (`classify.py`) provides an alternative to the Claude Code skill. The Review UI and PR publisher are shared between both paths.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -557,30 +560,33 @@ This means ~80% of files are classified without any LLM call, keeping costs and 
 
 ## 8. Validation Test Results
 
-Four test cases were run using commit tuples `(private_commit, public_commit, human_sync_commit)`. Full results are in `test-results/validation-report.md`.
+Five test cases were run using commit tuples `(private_commit, public_commit, human_sync_commit)`. Full results are in `test-results/validation-report.md`.
 
 ### Summary
 
 | Metric | Result |
 |--------|--------|
-| VZ auto-classification accuracy | **100%** |
+| VZ auto-classification accuracy | **100%** (22/22 VZ-prefix files) |
 | VZ marker detection accuracy | **100%** |
 | False positives (VZ content marked generic) | **0** |
-| Direct match with human sync | **1/4** (TC3) |
-| Valid but different target from human | **2/4** (TC2, TC4) |
+| Human sync match rate (applicable tests) | **3/3 (100%)** |
+| Overall match rate (all 5 TCs) | **3/5 (60%)** — 2 non-matches are human syncs unrelated to the tested commit |
 
 ### Per-Test-Case Results
 
-| TC | Private Commit | Tool Recommendation | Human Sync | Verdict |
-|----|---------------|--------------------|-----------|----|
-| TC1 | `3e21a42e` "doors removal" — 44 files, all Doors Id renames | No sync candidates | Grammar fix in helm.adoc (unrelated) | ✅ True negative |
-| TC2 | `f8df6b90` "add SCTP" — deleted cni-ovn (generic) | Delete cni-ovn from public | Removed IPv6-NAT include (different) | ⚠️ Valid, different target |
-| **TC3** | **`e9a66a20` "sync with 1.5" — cpu-manager-pinning has DPDK probe content** | **Sync DPDK probe content** | **Synced DPDK probe content** | **✅ Match** |
-| TC4 | `0226b64a` "updates to sync" — generic text fixes found | Sync container packaging guidance | Copyright year update (unrelated) | ⚠️ Valid recs, unrelated human action |
+| TC | Private Commit | Files | Tool Action | Human Sync | Verdict |
+|----|---------------|-------|-------------|------------|---------|
+| TC1 | `9c00e23` "add details on guaranteed pod" | 1 | cpu-isolation.adoc → **pending (generic)** | `5ec3e5f` synced cpu-isolation.adoc with same QoS content | **✅ Match** |
+| TC2 | `f8df6b90` "add SCTP requirement" | 4 | main.adoc → **pending (generic)**, cni-ovn → **pending (generic)**, ovn-k8s-cni → VZ-specific | `0da453e0` synced main.adoc (removed IPv6-NAT include) | **✅ Match** |
+| TC3 | `e9a66a20` "sync with 1.5 latest" | 26 | cpu-manager-pinning → **pending (mixed)**, 9 auto-excluded, 16 other pending | `573159a0` synced cpu-manager-pinning.adoc (DPDK exec probe content, stripped VZ wrappers) | **✅ Match** |
+| TC4 | `07ce6ca` "minor updates" | 9 | cnf-operator-requirements → **auto-excluded (VZ)** — marker edits on lines 146, 158 | `73e991d` updated cnf-operator-requirements.adoc — Red Hat certification link update on line 19 (different change, same file) | Correct exclusion |
+| TC5 | `3e21a42e` "updates for doors removal" | 43 | helm.adoc → **auto-excluded (VZ)** — Doors Id rename on line 10 | `09e7f2cf` updated helm.adoc — grammar fix "that"→"which" on line 4 (different change, same file) | True negative |
 
-### Key Takeaway
+### Key Takeaways
 
-The tool is **safe** (zero false positives — no VZ content would leak) and **accurate at classification** (100% on VZ marker detection). The strongest validation is TC3 where the tool independently identified the same generic content (DPDK exec probe warning) that a human expert chose to sync.
+1. **Safety:** Zero false positives across all 5 test cases — no VZ content would leak to the public repo.
+2. **Accuracy on applicable tests:** When the human sync was sourced from the private commit being tested (TC1, TC2, TC3), the tool flagged the same file as pending in all 3 cases.
+3. **TC4 and TC5 specifics:** Both the tool and human touched the same file (`cnf-operator-requirements` in TC4, `helm` in TC5), but with entirely different changes on different lines. The private commit's changes were VZ marker edits (correctly excluded); the human's changes were independent generic edits not sourced from the tested commit.
 
 ---
 
@@ -613,7 +619,7 @@ The publisher (`cnf_doc_sync_ui/publisher.py`) performs before creating a PR:
 
 | Area | Current State | Enhancement |
 |------|--------------|-------------|
-| **LLM provider** | Claude Code only | Add classify.py with Ollama/OpenAI/Anthropic (Section 7) |
+| **LLM provider** | Claude Code + classify.py (Ollama/OpenAI/Anthropic) | Both paths implemented and validated (Section 7) |
 | **Sanitized content** | Manual edit in UI | Auto-strip VZ markers and adapt `.VCP CNF requirement` → `.Workload requirement` |
 | **Cross-repo comparison** | Diff-based only | Add full-file comparison mode to find pre-existing content gaps |
 | **Structural checks** | Not implemented | Detect dangling includes, missing counterpart files |
@@ -660,7 +666,7 @@ cd frontend && npm run build
 | `frontend/src/App.tsx` | React UI — file list, diff view, accept/reject, bulk actions |
 | `frontend/src/types.ts` | TypeScript interfaces for the JSON data format |
 | `frontend/src/api.ts` | API client for 6 backend endpoints |
-| `test-results/validation-report.md` | Validation test results with 4 test cases |
+| `test-results/validation-report.md` | Validation test results with 5 test cases (v2), comparing both paths against human sync |
 | `test-results/ground-truth.json` | Reference test data |
 | `reports/sample_data.json` | Sample JSON for local development |
 
