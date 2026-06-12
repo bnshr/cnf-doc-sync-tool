@@ -11,4 +11,6 @@ cnf_doc_sync_ui/static/*
 reports/cnf-doc-sync-data-*.json
 reports/cnf-doc-sync-report-*.md
 test-results/*_data.json
+test-results/*_cli.json
+test-results/*_skill.json
 test-results/*_report.md

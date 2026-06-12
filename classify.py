@@ -156,9 +156,12 @@ PROVIDERS = {
 
 def git(repo: str, *args: str) -> str:
     r = subprocess.run(
-        ["git", "-C", repo, *args], capture_output=True, text=True, check=False
+        ["git", "-C", repo, *args], capture_output=True, check=False
     )
-    return r.stdout.strip()
+    try:
+        return r.stdout.decode("utf-8", errors="replace").strip()
+    except Exception:
+        return ""
 
 
 def commit_exists(repo: str, ref: str) -> bool:
@@ -507,6 +510,13 @@ async def run(args: argparse.Namespace) -> None:
 
     async def process_file(status: str, filepath: str) -> dict:
         async with sem:
+            # Skip binary files
+            binary_exts = (".pdf", ".png", ".jpg", ".jpeg", ".gif", ".ico",
+                           ".zip", ".tar", ".gz", ".bin", ".exe", ".so", ".dylib")
+            if any(filepath.lower().endswith(ext) for ext in binary_exts):
+                print(f"  [SKIP] {filepath} → binary file")
+                return None
+
             is_vz = "-vz-" in filepath
 
             # Map private path to public counterpart
@@ -598,7 +608,7 @@ async def run(args: argparse.Namespace) -> None:
 
     tasks = [process_file(s, f) for s, f in changes]
     results = await asyncio.gather(*tasks)
-    files_data = sorted(results, key=lambda f: f["private_path"])
+    files_data = sorted([r for r in results if r is not None], key=lambda f: f["private_path"])
 
     # Reassign sequential IDs
     for i, f in enumerate(files_data):
