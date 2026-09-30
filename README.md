@@ -151,23 +151,18 @@ options:
 
 ### Quick start — test the full flow
 
+Use private commit `e9a66a20` ("sync with 1.5 latest") and public commit `7a8e5c8`. That pair is the richest check: mostly Verizon-specific files, with generic DPDK content in `cpu-manager-pinning.adoc` that should stay pending for review. Point the two exports at your local clones.
+
 ```bash
-# 1. Activate the venv
 cd /path/to/cnf-doc-sync-tool
 source .venv/bin/activate
-
-# 2. Set repo paths (adjust to your local clones)
 export CNF_PRIVATE_REPO=/path/to/vz-cnf-best-practices-guide
 export CNF_PUBLIC_REPO=/path/to/guide
-
-# 3. Classify a commit (regex-only, no LLM needed)
-python classify.py 3e21a42e --public-commit eb6ec78 --no-llm \
-  --output reports/test-run.json
-
-# 4. Launch the review UI
-python -m cnf_doc_sync_ui --data reports/test-run.json
-# Opens http://localhost:8090 — review files, accept/reject, create PR
+python classify.py e9a66a20 --public-commit 7a8e5c8 --no-llm --output reports/test-tc3.json
+python -m cnf_doc_sync_ui --data reports/test-tc3.json
 ```
+
+The review UI opens at http://localhost:8090. See [docs/review-ui.md](docs/review-ui.md) for what to do on that screen. `reports/test-tc3.json` is gitignored because generated reports contain private guide content.
 
 **Example commits for testing:**
 
@@ -178,17 +173,12 @@ python -m cnf_doc_sync_ui --data reports/test-run.json
 | `e9a66a20` | Sync with 1.5 latest | 26 | Mostly VZ, cpu-manager-pinning has generic DPDK content |
 
 ```bash
-# Test with a mixed commit (has both VZ and generic content)
-python classify.py e9a66a20 --public-commit 7a8e5c8 --no-llm \
-  --output reports/test-tc3.json
-python -m cnf_doc_sync_ui --data reports/test-tc3.json
-
 # Test with Ollama (classifies ambiguous hunks via LLM)
 ollama serve                    # in another terminal
 ollama pull qwen2.5:7b          # one-time download
 python classify.py e9a66a20 --public-commit 7a8e5c8 --model qwen2.5:7b \
   --output reports/test-llm.json
-# Note: requires CNF_PRIVATE_REPO and CNF_PUBLIC_REPO env vars set (step 2 above),
+# Uses CNF_PRIVATE_REPO and CNF_PUBLIC_REPO from the quick start above,
 # or pass --private-repo and --public-repo explicitly
 
 # Clean up test files
@@ -224,16 +214,9 @@ Both produce identical JSON — the Review UI and PR publisher work the same reg
 
 ## Review UI
 
-After classification (from either path), the review UI opens at `http://localhost:8090`:
+After classification (from either path), the review UI opens at `http://localhost:8090`. The procedure — which list to work, what a hunk is, and when **Accept** actually publishes text — is in [docs/review-ui.md](docs/review-ui.md).
 
-| UI Element | What It Shows |
-|------------|---------------|
-| **Left sidebar** | Files grouped into "To Review" and "VZ-only (auto-excluded)" |
-| **Main panel** | Side-by-side diff (private changes vs. proposed public content) |
-| **Hunk breakdown** | Each change with its AI classification and rationale |
-| **Decision buttons** | Accept, Edit & Accept, or Reject per file |
-
-Once all reviewable files have a decision, click **"Create PR in guide repo"**. The tool creates a `sync/vz-YYYY-MM-DD` branch, applies accepted changes (mapping `cnf-best-practices-*` to `k8s-best-practices-*`), and opens a draft PR.
+Work **To review** one file at a time: **Accept**, **Edit & accept**, or **Skip**. **Create PR** turns on once at least one file is accepted. It creates a `sync/vz-YYYY-MM-DD` branch, writes the accepted public files (mapping `cnf-best-practices-*` to `k8s-best-practices-*`), and opens a PR. Pending and skipped files are left out.
 
 ## What Gets Filtered
 

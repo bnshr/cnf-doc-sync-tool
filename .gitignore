@@ -8,8 +8,9 @@ cnf_doc_sync_ui/static/*
 !cnf_doc_sync_ui/static/.gitkeep
 .env
 .DS_Store
-reports/cnf-doc-sync-data-*.json
-reports/cnf-doc-sync-report-*.md
+# Generated sync reports contain private Verizon guide content.
+reports/*
+!reports/sample_data.json
 test-results/*_data.json
 test-results/*_cli.json
 test-results/*_skill.json
