@@ -92,27 +92,37 @@ python classify.py <private-commit-hash> \
 python -m cnf_doc_sync_ui --data reports/cnf-doc-sync-data-YYYY-MM-DD.json
 ```
 
-### With OpenAI
+### Models and API keys
+
+`classify.py` supports three LLM providers. Pass the provider with `--provider` and the model with `--model`. Cloud keys are read from the environment — do not put API keys on the command line.
+
+| Provider | `--provider` | Auth | Default / typical model |
+|----------|--------------|------|-------------------------|
+| Ollama (local) | `ollama` (default) | None — run `ollama serve` | `qwen2.5:7b` |
+| OpenAI | `openai` | `export OPENAI_API_KEY=sk-...` | e.g. `gpt-4o` |
+| Anthropic | `anthropic` | `export ANTHROPIC_API_KEY=sk-ant-...` | e.g. `claude-sonnet-4-6` |
 
 ```bash
+# OpenAI
 export OPENAI_API_KEY=sk-...
 python classify.py <private-commit-hash> \
   --provider openai --model gpt-4o \
-  --private-repo /path/to/vz-cnf-best-practices-guide
-```
+  --private-repo /path/to/vz-cnf-best-practices-guide \
+  --public-repo /path/to/guide
 
-### With Anthropic
-
-```bash
+# Anthropic
 export ANTHROPIC_API_KEY=sk-ant-...
 python classify.py <private-commit-hash> \
   --provider anthropic --model claude-sonnet-4-6 \
-  --private-repo /path/to/vz-cnf-best-practices-guide
+  --private-repo /path/to/vz-cnf-best-practices-guide \
+  --public-repo /path/to/guide
 ```
 
-### Regex-only mode (no LLM needed)
+If the key is missing, `classify.py` exits with an error that the provider API key is not set. Only ambiguous hunks (~20%) call the LLM; the rest are handled by filename + VZ-marker regex.
 
-Most files can be classified by VZ marker regex alone (~80%). Use `--no-llm` to skip LLM calls entirely — ambiguous files are flagged as "mixed" for human review in the UI:
+### Regex-only mode (no LLM / no API key)
+
+Most files can be classified by VZ marker regex alone (~80%). Use `--no-llm` to skip LLM calls entirely — ambiguous files are flagged as "mixed" for human review in the UI. No Ollama, OpenAI, or Anthropic setup required:
 
 ```bash
 python classify.py <private-commit-hash> --no-llm \
@@ -128,6 +138,15 @@ export CNF_PRIVATE_REPO=/path/to/vz-cnf-best-practices-guide
 export CNF_PUBLIC_REPO=/path/to/guide
 python classify.py <commit-hash>
 ```
+
+Repo paths and API keys can all be set via env vars:
+
+| Variable | Purpose |
+|----------|---------|
+| `CNF_PRIVATE_REPO` | Path to private guide clone |
+| `CNF_PUBLIC_REPO` | Path to public guide clone |
+| `OPENAI_API_KEY` | Required when `--provider openai` |
+| `ANTHROPIC_API_KEY` | Required when `--provider anthropic` |
 
 ### Full CLI reference
 
@@ -166,11 +185,21 @@ The review UI opens at http://localhost:8090. See [docs/review-ui.md](docs/revie
 
 **Example commits for testing:**
 
-| Commit | Description | Files | Expected |
-|--------|-------------|-------|----------|
-| `3e21a42e` | Doors Id → Requirement Id renames | 42 | All VZ-specific, zero sync candidates |
-| `f8df6b90` | Add SCTP requirement + delete cni-ovn | 4 | 1 generic (cni-ovn deletion), 1 VZ, 1 mixed |
-| `e9a66a20` | Sync with 1.5 latest | 26 | Mostly VZ, cpu-manager-pinning has generic DPDK content |
+| Private | Public context | Description | Expected |
+|---------|----------------|-------------|----------|
+| `9c00e23` | `7a8e5c8` | Guaranteed QoS details on cpu-isolation (best private→public sync demo) | 1 generic file; human synced same content to public |
+| `e9a66a20` | `7a8e5c8` | Sync with 1.5 latest | Mostly VZ; cpu-manager-pinning has generic DPDK content |
+| `f8df6b90` | `445d1d7` | Add SCTP requirement + delete cni-ovn | Generic deletion + mixed SCTP hunks |
+| `3e21a42e` | `eb6ec78` | Doors Id → Requirement Id renames | All VZ-specific, zero sync candidates |
+
+For a minimal end-to-end example where private generic content matched a real public sync:
+
+```bash
+python classify.py 9c00e23 --public-commit 7a8e5c8 \
+  --provider openai --model gpt-4o
+# or: --no-llm   /   --provider ollama --model qwen2.5:7b
+```
+
 
 ```bash
 # Test with Ollama (classifies ambiguous hunks via LLM)
@@ -201,14 +230,18 @@ Both produce identical JSON — the Review UI and PR publisher work the same reg
 
 ### Recommended models
 
-| Model | Provider | Size | RAM | Best For |
+Use any model your provider supports via `--model`. Suggestions:
+
+| Model | Provider | Size | RAM | Best for |
 |-------|----------|------|-----|----------|
-| qwen2.5:7b | Ollama | 7B | 5GB | Best overall for classification |
-| llama3.1:8b | Ollama | 8B | 6GB | Strongest reasoning |
-| mistral:7b | Ollama | 7B | 4GB | Fastest JSON extraction |
-| llama3.2:3b | Ollama | 3B | 2GB | Low-resource environments |
-| gpt-4o | OpenAI | — | — | Highest accuracy (cloud) |
-| claude-sonnet-4-6 | Anthropic | — | — | Best for long documents (cloud) |
+| `qwen2.5:7b` | Ollama | 7B | ~5GB | Best overall local classification (default) |
+| `llama3.1:8b` | Ollama | 8B | ~6GB | Stronger reasoning on mixed hunks |
+| `mistral:7b` | Ollama | 7B | ~4GB | Faster JSON extraction |
+| `llama3.2:3b` | Ollama | 3B | ~2GB | Low-resource machines |
+| `gpt-4o` | OpenAI | — | — | Highest accuracy (needs `OPENAI_API_KEY`) |
+| `claude-sonnet-4-6` | Anthropic | — | — | Long docs / mixed hunks (needs `ANTHROPIC_API_KEY`) |
+
+Ollama models must be pulled once (`ollama pull <model>`). Cloud models are billed by the provider; `--no-llm` avoids all model calls.
 
 ---
 
