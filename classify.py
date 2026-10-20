@@ -6,6 +6,9 @@ Analyzes changes in a private repo commit and classifies each as
 Verizon-specific or generic. Produces a JSON data file compatible
 with the Review UI (python -m cnf_doc_sync_ui --data <file>).
 
+When all hunks in a file are generic, also fills proposed_public_content
+(remapped private-after draft) so Accept in the UI can create a PR.
+
 Works with Ollama (local), OpenAI, or Anthropic as the LLM backend.
 Most files are classified without an LLM call at all (filename pattern
 + regex matching handles ~80% of cases).
@@ -92,7 +95,11 @@ class OllamaProvider:
 class OpenAIProvider:
     def __init__(self, model: str = "gpt-4o", api_key: str | None = None):
         self.model = model
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
+        self.api_key = (
+            api_key
+            or os.environ.get("ENMAAS_KEY", "")
+            or os.environ.get("OPENAI_API_KEY", "")
+        )
 
     async def health_check(self) -> bool:
         return bool(self.api_key)
@@ -117,7 +124,11 @@ class OpenAIProvider:
 class AnthropicProvider:
     def __init__(self, model: str = "claude-sonnet-4-6", api_key: str | None = None):
         self.model = model
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        self.api_key = (
+            api_key
+            or os.environ.get("ENMAAS_KEY", "")
+            or os.environ.get("ANTHROPIC_API_KEY", "")
+        )
 
     async def health_check(self) -> bool:
         return bool(self.api_key)
@@ -456,6 +467,49 @@ def file_level_classification(hunks: list[dict]) -> str:
     return "shared"
 
 
+def all_hunks_generic(hunks: list[dict]) -> bool:
+    """True only when every hunk is classified generic (stricter draft gate)."""
+    return bool(hunks) and all(h.get("classification") == "generic" for h in hunks)
+
+
+def build_proposed_public_content(
+    content_after: str,
+    hunks: list[dict],
+    *,
+    is_vz: bool,
+    public_path: str,
+) -> str:
+    """Draft public file text for the Review UI.
+
+    Only when *all* hunks are generic (safer). Starts from private content
+    after the commit, remaps ``cnf-best-practices-`` → ``k8s-best-practices-``,
+    and drops lines that still match VZ markers. Mixed / VZ / deletes → empty.
+    """
+    if is_vz or not public_path or not content_after:
+        return ""
+    if not all_hunks_generic(hunks):
+        return ""
+
+    text = content_after.replace("cnf-best-practices-", "k8s-best-practices-")
+    kept: list[str] = []
+    for line in text.splitlines():
+        if VZ_PATTERN.search(line):
+            continue
+        kept.append(line)
+    # Collapse runs of blank lines left by stripped VZ lines
+    out: list[str] = []
+    blank = 0
+    for line in kept:
+        if line.strip() == "":
+            blank += 1
+            if blank <= 2:
+                out.append(line)
+        else:
+            blank = 0
+            out.append(line)
+    return "\n".join(out) + ("\n" if text.endswith("\n") else "")
+
+
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
@@ -491,7 +545,10 @@ async def run(args: argparse.Namespace) -> None:
             print(f"ERROR: Ollama not reachable at {args.ollama_url}")
             print("Start it with: ollama serve")
         else:
-            print(f"ERROR: {args.provider} API key not set")
+            print(
+                f"ERROR: {args.provider} API key not set. "
+                f"Export ENMAAS_KEY (or the provider-specific key)."
+            )
         sys.exit(1)
 
     commit_msg = get_commit_msg(private_repo, commit)
@@ -586,6 +643,12 @@ async def run(args: argparse.Namespace) -> None:
                 content_after = get_file_at(private_repo, commit, filepath)
 
             overall = file_level_classification(hunks)
+            proposed = build_proposed_public_content(
+                content_after,
+                hunks,
+                is_vz=is_vz,
+                public_path=public_path,
+            )
 
             return {
                 "id": f"f{len(files_data)+1}",
@@ -599,7 +662,7 @@ async def run(args: argparse.Namespace) -> None:
                 ),
                 "private_content_before": content_before,
                 "private_content_after": content_after,
-                "proposed_public_content": "",
+                "proposed_public_content": proposed,
                 "final_content": "",
                 "decision": "auto_excluded" if is_vz or overall == "vz_specific" else "pending",
                 "reviewer_classification": "",

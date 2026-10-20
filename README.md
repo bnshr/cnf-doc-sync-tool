@@ -73,7 +73,13 @@ Then in any Claude Code session:
 
 ## Path B: Standalone CLI (no Claude Code required)
 
-Use `classify.py` with a local or cloud LLM:
+Use `classify.py` with a local or cloud LLM.
+
+When **every** hunk in a file is classified **generic**, `classify.py` also fills
+**Proposed public content** (private file after the commit, `cnf-best-practices-`
+→ `k8s-best-practices-`, VZ-marker lines stripped). You can **Accept** in the
+Review UI without pasting a long file. Mixed or VZ hunks leave proposed content
+empty — use **Edit & accept** for those.
 
 ### With Ollama (local, free)
 
@@ -94,35 +100,35 @@ python -m cnf_doc_sync_ui --data reports/cnf-doc-sync-data-YYYY-MM-DD.json
 
 ### Models and API keys
 
-`classify.py` supports three LLM providers. Pass the provider with `--provider` and the model with `--model`. Cloud keys are read from the environment — do not put API keys on the command line.
+`classify.py` supports three LLM providers. Pass the provider with `--provider` and the model with `--model`. For cloud providers (OpenAI / Anthropic), set a single env var — **`ENMAAS_KEY`** — do not put API keys on the command line.
 
 | Provider | `--provider` | Auth | Default / typical model |
 |----------|--------------|------|-------------------------|
 | Ollama (local) | `ollama` (default) | None — run `ollama serve` | `qwen2.5:7b` |
-| OpenAI | `openai` | `export OPENAI_API_KEY=sk-...` | e.g. `gpt-4o` |
-| Anthropic | `anthropic` | `export ANTHROPIC_API_KEY=sk-ant-...` | e.g. `claude-sonnet-4-6` |
+| OpenAI | `openai` | `export ENMAAS_KEY=...` | e.g. `glm-5-3` |
+| Anthropic | `anthropic` | `export ENMAAS_KEY=...` | e.g. `claude-sonnet-4-6` |
 
 ```bash
-# OpenAI
-export OPENAI_API_KEY=sk-...
-python classify.py <private-commit-hash> \
-  --provider openai --model gpt-4o \
+export ENMAAS_KEY=...
+
+# OpenAI-compatible via ENMAAS_KEY (example model: glm-5-3)
+python classify.py 9c00e23 --public-commit 7a8e5c8 \
+  --provider openai --model glm-5-3 \
   --private-repo /path/to/vz-cnf-best-practices-guide \
   --public-repo /path/to/guide
 
-# Anthropic
-export ANTHROPIC_API_KEY=sk-ant-...
+# Anthropic-compatible via the same ENMAAS_KEY
 python classify.py <private-commit-hash> \
   --provider anthropic --model claude-sonnet-4-6 \
   --private-repo /path/to/vz-cnf-best-practices-guide \
   --public-repo /path/to/guide
 ```
 
-If the key is missing, `classify.py` exits with an error that the provider API key is not set. Only ambiguous hunks (~20%) call the LLM; the rest are handled by filename + VZ-marker regex.
+If `ENMAAS_KEY` is missing, `classify.py` exits with an error that the API key is not set. Only ambiguous hunks (~20%) call the LLM; the rest are handled by filename + VZ-marker regex.
 
 ### Regex-only mode (no LLM / no API key)
 
-Most files can be classified by VZ marker regex alone (~80%). Use `--no-llm` to skip LLM calls entirely — ambiguous files are flagged as "mixed" for human review in the UI. No Ollama, OpenAI, or Anthropic setup required:
+Most files can be classified by VZ marker regex alone (~80%). Use `--no-llm` to skip LLM calls entirely — ambiguous files are flagged as "mixed" for human review in the UI. No Ollama or `ENMAAS_KEY` required:
 
 ```bash
 python classify.py <private-commit-hash> --no-llm \
@@ -145,8 +151,7 @@ Repo paths and API keys can all be set via env vars:
 |----------|---------|
 | `CNF_PRIVATE_REPO` | Path to private guide clone |
 | `CNF_PUBLIC_REPO` | Path to public guide clone |
-| `OPENAI_API_KEY` | Required when `--provider openai` |
-| `ANTHROPIC_API_KEY` | Required when `--provider anthropic` |
+| `ENMAAS_KEY` | Required when `--provider openai` or `--provider anthropic` |
 
 ### Full CLI reference
 
@@ -195,8 +200,9 @@ The review UI opens at http://localhost:8090. See [docs/review-ui.md](docs/revie
 For a minimal end-to-end example where private generic content matched a real public sync:
 
 ```bash
+export ENMAAS_KEY=...
 python classify.py 9c00e23 --public-commit 7a8e5c8 \
-  --provider openai --model gpt-4o
+  --provider openai --model glm-5-3
 # or: --no-llm   /   --provider ollama --model qwen2.5:7b
 ```
 
@@ -230,18 +236,45 @@ Both produce identical JSON — the Review UI and PR publisher work the same reg
 
 ### Recommended models
 
-Use any model your provider supports via `--model`. Suggestions:
+Classification only needs an LLM for the ambiguous ~20% of hunks. Prefer a model that follows JSON instructions reliably.
 
-| Model | Provider | Size | RAM | Best for |
-|-------|----------|------|-----|----------|
-| `qwen2.5:7b` | Ollama | 7B | ~5GB | Best overall local classification (default) |
-| `llama3.1:8b` | Ollama | 8B | ~6GB | Stronger reasoning on mixed hunks |
-| `mistral:7b` | Ollama | 7B | ~4GB | Faster JSON extraction |
-| `llama3.2:3b` | Ollama | 3B | ~2GB | Low-resource machines |
-| `gpt-4o` | OpenAI | — | — | Highest accuracy (needs `OPENAI_API_KEY`) |
-| `claude-sonnet-4-6` | Anthropic | — | — | Long docs / mixed hunks (needs `ANTHROPIC_API_KEY`) |
+**Best picks**
 
-Ollama models must be pulled once (`ollama pull <model>`). Cloud models are billed by the provider; `--no-llm` avoids all model calls.
+| Priority | Model | Provider | When to use |
+|----------|-------|----------|-------------|
+| **1 — best default** | `glm-5-3` | OpenAI + `ENMAAS_KEY` | Day-to-day runs; good balance of accuracy and ENMAAS availability |
+| **2 — best local** | `qwen2.5:7b` | Ollama | Offline / no ENMAAS; CLI default; strong at this JSON classification task |
+| **3 — no model** | `--no-llm` | — | Fastest; regex only; mixed hunks go to the UI for you |
+
+**Also fine (cloud, via `ENMAAS_KEY`)**
+
+| Model | When |
+|-------|------|
+| `gpt-4o` | Highest accuracy if your ENMAAS gateway exposes it |
+| `gpt-4o-mini` | Large commits when you want cheaper / faster cloud calls |
+
+**Also fine (Ollama local)**
+
+| Model | RAM | When |
+|-------|-----|------|
+| `llama3.1:8b` | ~6GB | Mixed hunks need stronger reasoning |
+| `mistral:7b` | ~4GB | Faster local JSON extraction |
+| `llama3.2:3b` | ~2GB | Low-RAM machines (lower quality) |
+
+```bash
+# Best cloud (recommended)
+export ENMAAS_KEY=...
+python classify.py 9c00e23 --public-commit 7a8e5c8 \
+  --provider openai --model glm-5-3
+
+# Best local
+ollama serve && ollama pull qwen2.5:7b
+python classify.py 9c00e23 --public-commit 7a8e5c8 \
+  --provider ollama --model qwen2.5:7b
+
+# No LLM
+python classify.py 9c00e23 --public-commit 7a8e5c8 --no-llm
+```
 
 ---
 
